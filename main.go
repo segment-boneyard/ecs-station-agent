@@ -12,7 +12,7 @@ var (
 	postgresURL = flag.String("postgres", "", "Postgres URL to store ECS task state in")
 
 	// Globals
-	queue *Queue
+	queue *SQSQueue
 	store *PostgresStore
 )
 
@@ -41,7 +41,7 @@ func init() {
 // then persist them to Postgres.
 func main() {
 	for {
-		successfullyUpdated := []Message{}
+		successfullyUpdated := []SQSMessage{}
 
 		for _, message := range queue.Receive() {
 			state := message.ECSEvent.Task

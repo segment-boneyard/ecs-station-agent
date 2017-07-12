@@ -32,7 +32,7 @@ const (
 )
 
 // DialSQS returns an SQS-backed queue of ECS task state changes.
-func DialSQS(queueURL string) (*Queue, error) {
+func DialSQS(queueURL string) (*SQSQueue, error) {
 	sess, err := session.NewSession(&aws.Config{
 		MaxRetries: aws.Int(sqsMaxRetries),
 	})
@@ -40,22 +40,22 @@ func DialSQS(queueURL string) (*Queue, error) {
 		return nil, err
 	}
 
-	return &Queue{
+	return &SQSQueue{
 		queueURL: queueURL,
 		service:  sqs.New(sess),
 	}, nil
 }
 
-// Queue is a simplified interface to an SQS queue. All methods use an
+// SQSQueue is a simplified interface to an SQS queue. All methods use an
 // indefinite backoff to retry perpetually when errors are encountered instead
 // of returning errors.
-type Queue struct {
+type SQSQueue struct {
 	queueURL string
 	service  sqsiface.SQSAPI
 }
 
-// Message is a single received SQS message and its ECSEvent body.
-type Message struct {
+// SQSMessage is a single received SQS message and its ECSEvent body.
+type SQSMessage struct {
 	ECSEvent      ECSEvent
 	id            string
 	receiptHandle string
@@ -64,7 +64,7 @@ type Message struct {
 // Receive returns 0 or more successfully "received" SQS messages. It never
 // returns an error and will instead retry perpetually until an error is not
 // returned by the SQS API.
-func (q *Queue) Receive() (messages []Message) {
+func (q *SQSQueue) Receive() (messages []SQSMessage) {
 	var sqsMessages []*sqs.Message
 
 	backoff.Retry(func() error {
@@ -90,9 +90,9 @@ func (q *Queue) Receive() (messages []Message) {
 	return parseBodies(sqsMessages)
 }
 
-func parseBodies(sqsMessages []*sqs.Message) (messages []Message) {
+func parseBodies(sqsMessages []*sqs.Message) (messages []SQSMessage) {
 	for _, sqsMessage := range sqsMessages {
-		message := Message{
+		message := SQSMessage{
 			id:            *sqsMessage.MessageId,
 			receiptHandle: *sqsMessage.ReceiptHandle,
 		}
@@ -112,7 +112,7 @@ func parseBodies(sqsMessages []*sqs.Message) (messages []Message) {
 // Delete takes 0 or more SQS messages and deletes them from SQS. It never
 // returns an error and will instead retry perpetually until an error is not
 // returned.
-func (q *Queue) Delete(messages []Message) {
+func (q *SQSQueue) Delete(messages []SQSMessage) {
 	if len(messages) == 0 {
 		return
 	}
