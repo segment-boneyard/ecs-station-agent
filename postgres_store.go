@@ -14,14 +14,32 @@ func DialPostgresStore(url string) (*PostgresStore, error) {
 	return &PostgresStore{db}, err
 }
 
-// Update inserts the given state in Postgres. If the version of the given
-// state already exists, it does nothing.
+// Update saves the given task state in Postgres only if the version of the
+// task state is greater than what is stored or if the task state hasn't been
+// stored yet.
 func (s *PostgresStore) Update(state ECSTaskState) error {
 	if len(state.Containers) == 0 {
 		state.Containers = []ECSContainer{ECSContainer{}}
 	}
 
-	_, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var needsUpdate bool
+	err = tx.QueryRow("SELECT 1 FROM tasks WHERE task_arn=$1 AND version < $2", state.TaskARN, state.Version).Scan(&needsUpdate)
+	if err != nil || !needsUpdate {
+		return err
+	}
+
+	_, err = tx.Exec("DELETE FROM tasks WHERE task_arn=$1", state.TaskARN)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`
 		INSERT INTO tasks
 			(task_arn, task_def_arn, cluster_arn, container_instance_arn, created_at,
 			started_at, stopped_at, stopped_reason, desired_status, last_status,
@@ -29,7 +47,6 @@ func (s *PostgresStore) Update(state ECSTaskState) error {
 			container_name, version)
 		VALUES
 			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		ON CONFLICT (task_arn, version) DO NOTHING
 	`,
 		state.TaskARN,
 		state.TaskDefinitionARN,
@@ -47,6 +64,9 @@ func (s *PostgresStore) Update(state ECSTaskState) error {
 		state.Containers[0].Name,
 		state.Version,
 	)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return tx.Commit()
 }

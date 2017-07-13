@@ -15,5 +15,3 @@ CREATE TABLE IF NOT EXISTS tasks (
    container_name         TEXT,
    version                INTEGER
 );
-
-CREATE UNIQUE INDEX ON tasks (task_arn, version);
