@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: docker:latest
+    working_directory: /go/src/github.com/segmentio/ecs-station-agent
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+        docker build -t segment/ecs-station-agent .
+        docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+        docker push segment/ecs-station-agent:latest
