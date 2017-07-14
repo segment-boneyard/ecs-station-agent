@@ -1,4 +1,4 @@
-FROM library/golang:1.9-alpine
+FROM golang:1.9-alpine
 
 RUN apk add --update git
 
@@ -10,4 +10,4 @@ RUN go-wrapper download
 
 RUN go-wrapper install
 
-ENTRYPOINT ["/ecs-station-agent"]
+ENTRYPOINT ["/go/bin/ecs-station-agent"]
