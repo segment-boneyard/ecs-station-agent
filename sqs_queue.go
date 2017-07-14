@@ -140,7 +140,8 @@ const (
 	retryMax = 5 * time.Second
 )
 
-// tryForever is a basic exponential backoff algorithm.
+// tryForever calls the given function until it doesn't return an error. It
+// uses a basic exponential backoff algorithm.
 func tryForever(fn func() error) {
 	sleep := retryMin
 	for {
