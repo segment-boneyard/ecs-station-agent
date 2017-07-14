@@ -7,7 +7,8 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: |
+    run:
+      command: |
         docker build -t segment/ecs-station-agent .
         docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
         docker push segment/ecs-station-agent:latest
