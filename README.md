@@ -59,9 +59,9 @@ for this. We created a simple Terraform template for this at
 ## See Also
 
 [Blox][blox] is a much more comprehensive suite of tools that can be used to
-write custom ECS task schedulers. Blox requires running and maintaining an etcd
-cluster in addition to many other parts. We wrote `ecs-station-agent` because we
-wanted something that was minimal in terms of operation effort.
+write custom ECS task schedulers originally released by AWS itself. Blox
+requires running and maintaining an etcd cluster and has many more moving parts
+than `ecs-station-agent`.
 
 [events]: http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_cwe_events.html
 [container]: https://hub.docker.com/r/segment/ecs-station-agent/
