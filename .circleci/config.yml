@@ -11,5 +11,5 @@ jobs:
         name: Build and push Docker image
         command: |
           docker build -t segment/ecs-station-agent .
-          docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
           docker push segment/ecs-station-agent:latest
