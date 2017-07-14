@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
-	"github.com/cenkalti/backoff"
 )
 
 const (
@@ -67,7 +66,7 @@ type SQSMessage struct {
 func (q *SQSQueue) Receive() (messages []SQSMessage) {
 	var sqsMessages []*sqs.Message
 
-	backoff.Retry(func() error {
+	tryForever(func() error {
 		output, err := q.service.ReceiveMessage(&sqs.ReceiveMessageInput{
 			QueueUrl:            aws.String(q.queueURL),
 			MaxNumberOfMessages: aws.Int64(sqsMaxNumberOfMessages),
@@ -79,13 +78,12 @@ func (q *SQSQueue) Receive() (messages []SQSMessage) {
 		})
 		if err != nil {
 			log.Printf("ReceiveMessage failed: %s", err.Error())
-			return err // backoff + retry
+			return err // retry
 		}
 
-		// exit backoff loop successfully
 		sqsMessages = output.Messages
-		return nil
-	}, backoffForever())
+		return nil // exit retry loop
+	})
 
 	return parseBodies(sqsMessages)
 }
@@ -117,7 +115,7 @@ func (q *SQSQueue) Delete(messages []SQSMessage) {
 		return
 	}
 
-	backoff.Retry(func() error {
+	tryForever(func() error {
 		input := &sqs.DeleteMessageBatchInput{}
 
 		for _, message := range messages {
@@ -130,21 +128,30 @@ func (q *SQSQueue) Delete(messages []SQSMessage) {
 		_, err := q.service.DeleteMessageBatch(input)
 		if err != nil {
 			log.Printf("DeleteMessageBatch failed: %s", err.Error())
-			return err // backoff + retry
+			return err // retry
 		}
 
-		return nil // exit backoff loop
-	}, backoffForever())
+		return nil // exit retry loop
+	})
 }
 
-// backoffForever returns a BackOff that continues forever with an interval
-// ranging from 1 second to 1 minute.
-func backoffForever() backoff.BackOff {
-	return &backoff.ExponentialBackOff{
-		InitialInterval:     time.Second,
-		RandomizationFactor: backoff.DefaultRandomizationFactor,
-		Multiplier:          backoff.DefaultMultiplier,
-		MaxInterval:         time.Minute,
-		Clock:               backoff.SystemClock,
+const (
+	retryMin = 100 * time.Millisecond
+	retryMax = 5 * time.Second
+)
+
+// tryForever is a basic exponential backoff algorithm.
+func tryForever(fn func() error) {
+	sleep := retryMin
+	for {
+		if fn() == nil {
+			return
+		}
+
+		time.Sleep(sleep)
+		sleep = 2 * sleep
+		if sleep > retryMax {
+			sleep = retryMax
+		}
 	}
 }
