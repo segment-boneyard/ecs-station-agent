@@ -8,8 +8,10 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
-          name: Build and push Docker image
+          name: Build Docker image
+          command: docker build -t segment/ecs-station-agent .
+      - run:
+          name: Build push Docker image
           command: |
-            docker build -t segment/ecs-station-agent .
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push segment/ecs-station-agent:latest
