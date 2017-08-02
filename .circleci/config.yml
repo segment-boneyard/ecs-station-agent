@@ -3,10 +3,19 @@ jobs:
   build:
     docker:
       - image: docker:latest
+        environment:
+          ECR_ENABLED: True
     working_directory: /go/src/github.com/segmentio/ecs-station-agent
     steps:
       - checkout
       - setup_remote_docker
+      - run:
+          name: Setup ECR Credentials
+          command: |
+            apk add -U --no-progress curl sudo
+            curl -LO https://github.com/lox/amazon-ecr-credential-helper/releases/download/v1.0.0/docker-credential-ecr-login_linux_amd64
+            sudo mv docker-credential-ecr-login_linux_amd64 /usr/local/bin/docker-credential-ecr-login && chmod +x /usr/local/bin/docker-credential-ecr-login
+            mkdir ~/.docker && echo "{\"credHelpers\":{\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com\":\"ecr-login\"}}" > ~/.docker/config.json
       - run:
           name: Build Docker image
           command: docker build -t segment/ecs-station-agent .
@@ -15,3 +24,8 @@ jobs:
           command: |
             docker login -u $DOCKER_USER -p $DOCKER_PASS
             docker push segment/ecs-station-agent:latest
+      - run:
+          name: Push Docker image to ECR
+          command: |
+            docker tag segment/ecs-station-agent:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/ecs-station-agent:latest
+            docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/ecs-station-agent:latest
